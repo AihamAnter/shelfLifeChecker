@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/inventory_item.dart';
+import '../services/inventory_storage.dart';
 import 'add_edit_item_screen.dart';
 
 class InventoryListScreen extends StatefulWidget {
@@ -12,39 +13,61 @@ class InventoryListScreen extends StatefulWidget {
 }
 
 class _InventoryListScreenState extends State<InventoryListScreen> {
-  final List<InventoryItem> _items = [
-    InventoryItem(
-      id: '1',
-      name: 'Milk 2L',
-      category: 'Dairy',
-      quantity: '2 pcs',
-      expiryDate: DateTime.now().add(const Duration(days: 2)),
-    ),
-    InventoryItem(
-      id: '2',
-      name: 'Bread Loaf',
-      category: 'Bakery',
-      quantity: '5 pcs',
-      expiryDate: DateTime.now(),
-    ),
-    InventoryItem(
-      id: '3',
-      name: 'Chicken Breast',
-      category: 'Meat',
-      quantity: '1.5 kg',
-      expiryDate: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-  ];
+  final _storage = InventoryStorage();
+  late List<InventoryItem> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = _storage.loadItems();
+    if (_items.isEmpty) {
+      _seedDemoData();
+    }
+  }
+
+  Future<void> _seedDemoData() async {
+    final demo = [
+      InventoryItem(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: 'Milk 2L',
+        category: 'Dairy',
+        quantity: '2 pcs',
+        expiryDate: DateTime.now().add(const Duration(days: 2)),
+      ),
+      InventoryItem(
+        id: (DateTime.now().microsecondsSinceEpoch + 1).toString(),
+        name: 'Bread Loaf',
+        category: 'Bakery',
+        quantity: '5 pcs',
+        expiryDate: DateTime.now(),
+      ),
+      InventoryItem(
+        id: (DateTime.now().microsecondsSinceEpoch + 2).toString(),
+        name: 'Chicken Breast',
+        category: 'Meat',
+        quantity: '1.5 kg',
+        expiryDate: DateTime.now().subtract(const Duration(days: 1)),
+      ),
+    ];
+
+    for (final item in demo) {
+      await _storage.addItem(item);
+    }
+
+    setState(() => _items = _storage.loadItems());
+  }
 
   Future<void> _openAddItem() async {
     final result = await Navigator.pushNamed(context, AddEditItemScreen.routeName);
     if (result is InventoryItem) {
-      setState(() => _items.insert(0, result));
+      await _storage.addItem(result);
+      setState(() => _items = _storage.loadItems());
     }
   }
 
-  void _deleteItem(String id) {
-    setState(() => _items.removeWhere((e) => e.id == id));
+  Future<void> _deleteItem(String id) async {
+    await _storage.deleteItem(id);
+    setState(() => _items = _storage.loadItems());
   }
 
   @override
@@ -104,9 +127,6 @@ class _InventoryRow extends StatelessWidget {
       title: Text(item.name),
       subtitle: Text('${item.category} • ${item.quantity} • $statusText'),
       trailing: const Icon(Icons.chevron_right),
-      onTap: () {
-        // later: details/edit
-      },
     );
   }
 }
