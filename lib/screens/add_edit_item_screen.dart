@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/inventory_item.dart';
 
 class AddEditItemScreen extends StatefulWidget {
   static const routeName = '/add-edit';
@@ -32,13 +33,12 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
     );
-    if (picked != null) {
-      setState(() => _expiryDate = picked);
-    }
+    if (picked != null) setState(() => _expiryDate = picked);
   }
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
+
     if (_expiryDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pick an expiry date')),
@@ -46,11 +46,15 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       return;
     }
 
-    // later: save to local storage
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Saved (placeholder)')),
+    final item = InventoryItem(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: _nameCtrl.text.trim(),
+      category: _category,
+      quantity: _qtyCtrl.text.trim(),
+      expiryDate: _expiryDate!,
     );
-    Navigator.pop(context);
+
+    Navigator.pop(context, item);
   }
 
   @override
@@ -60,9 +64,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
         : '${_expiryDate!.year}-${_expiryDate!.month.toString().padLeft(2, '0')}-${_expiryDate!.day.toString().padLeft(2, '0')}';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Item'),
-      ),
+      appBar: AppBar(title: const Text('Add Item')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(

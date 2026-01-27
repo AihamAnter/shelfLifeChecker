@@ -1,41 +1,81 @@
 import 'package:flutter/material.dart';
+import '../models/inventory_item.dart';
 import 'add_edit_item_screen.dart';
 
-class InventoryListScreen extends StatelessWidget {
+class InventoryListScreen extends StatefulWidget {
   static const routeName = '/';
 
   const InventoryListScreen({super.key});
 
   @override
+  State<InventoryListScreen> createState() => _InventoryListScreenState();
+}
+
+class _InventoryListScreenState extends State<InventoryListScreen> {
+  final List<InventoryItem> _items = [
+    InventoryItem(
+      id: '1',
+      name: 'Milk 2L',
+      category: 'Dairy',
+      quantity: '2 pcs',
+      expiryDate: DateTime.now().add(const Duration(days: 2)),
+    ),
+    InventoryItem(
+      id: '2',
+      name: 'Bread Loaf',
+      category: 'Bakery',
+      quantity: '5 pcs',
+      expiryDate: DateTime.now(),
+    ),
+    InventoryItem(
+      id: '3',
+      name: 'Chicken Breast',
+      category: 'Meat',
+      quantity: '1.5 kg',
+      expiryDate: DateTime.now().subtract(const Duration(days: 1)),
+    ),
+  ];
+
+  Future<void> _openAddItem() async {
+    final result = await Navigator.pushNamed(context, AddEditItemScreen.routeName);
+    if (result is InventoryItem) {
+      setState(() => _items.insert(0, result));
+    }
+  }
+
+  void _deleteItem(String id) {
+    setState(() => _items.removeWhere((e) => e.id == id));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inventory'),
-      ),
-      body: ListView(
-        children: const [
-          _InventoryRow(
-            name: 'Milk 2L',
-            category: 'Dairy',
-            qty: '2 pcs',
-            daysLeft: 2,
-          ),
-          _InventoryRow(
-            name: 'Bread Loaf',
-            category: 'Bakery',
-            qty: '5 pcs',
-            daysLeft: 0,
-          ),
-          _InventoryRow(
-            name: 'Chicken Breast',
-            category: 'Meat',
-            qty: '1.5 kg',
-            daysLeft: -1,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Inventory')),
+      body: _items.isEmpty
+          ? const Center(child: Text('No items yet. Tap + to add one.'))
+          : ListView.builder(
+              itemCount: _items.length,
+              itemBuilder: (context, index) {
+                final item = _items[index];
+                final daysLeft = item.daysLeftFrom(now);
+
+                return Dismissible(
+                  key: ValueKey(item.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: const Icon(Icons.delete),
+                  ),
+                  onDismissed: (_) => _deleteItem(item.id),
+                  child: _InventoryRow(item: item, daysLeft: daysLeft),
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, AddEditItemScreen.routeName),
+        onPressed: _openAddItem,
         child: const Icon(Icons.add),
       ),
     );
@@ -43,15 +83,11 @@ class InventoryListScreen extends StatelessWidget {
 }
 
 class _InventoryRow extends StatelessWidget {
-  final String name;
-  final String category;
-  final String qty;
+  final InventoryItem item;
   final int daysLeft;
 
   const _InventoryRow({
-    required this.name,
-    required this.category,
-    required this.qty,
+    required this.item,
     required this.daysLeft,
   });
 
@@ -65,11 +101,11 @@ class _InventoryRow extends StatelessWidget {
 
     return ListTile(
       leading: Icon(icon),
-      title: Text(name),
-      subtitle: Text('$category • $qty • $statusText'),
+      title: Text(item.name),
+      subtitle: Text('${item.category} • ${item.quantity} • $statusText'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
-        // later: open details screen
+        // later: details/edit
       },
     );
   }
