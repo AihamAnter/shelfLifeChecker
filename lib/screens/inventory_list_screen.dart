@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/inventory_item.dart';
 import '../services/inventory_storage.dart';
 import 'add_edit_item_screen.dart';
+
 
 enum InventoryFilter { all, expiringSoon, expired }
 
@@ -220,7 +222,17 @@ class _InventoryRow extends StatelessWidget {
         daysLeft < 0 ? Icons.error_outline : (daysLeft == 0 ? Icons.warning_amber : Icons.check_circle_outline);
 
     return ListTile(
-      leading: Icon(icon),
+      leading: item.photoPath != null
+    ? ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(item.photoPath!),
+          width: 44,
+          height: 44,
+          fit: BoxFit.cover,
+        ),
+      )
+    : Icon(icon),
       title: Text(item.name),
       subtitle: Text('${item.category} • ${item.quantity} • $statusText'),
       trailing: const Icon(Icons.chevron_right),

@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+
 import '../models/inventory_item.dart';
 
 class AddEditItemScreen extends StatefulWidget {
@@ -18,6 +23,9 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
   final _qtyCtrl = TextEditingController();
   DateTime? _expiryDate;
 
+  final _picker = ImagePicker();
+  XFile? _pickedImage;
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -36,6 +44,25 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     if (picked != null) setState(() => _expiryDate = picked);
   }
 
+  Future<void> _takePhoto() async {
+    final xfile = await _picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+
+    if (xfile == null) return;
+
+    final ext = p.extension(xfile.path);
+    final safeName = 'item_${DateTime.now().microsecondsSinceEpoch}$ext';
+
+    setState(() => _pickedImage = xfile);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Photo captured: $safeName')),
+    );
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -52,6 +79,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       category: _category,
       quantity: _qtyCtrl.text.trim(),
       expiryDate: _expiryDate!,
+      photoPath: _pickedImage?.path,
     );
 
     Navigator.pop(context, item);
@@ -60,8 +88,11 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
   @override
   Widget build(BuildContext context) {
     final expiryText = _expiryDate == null
-        ? 'Pick expiry date'
-        : '${_expiryDate!.year}-${_expiryDate!.month.toString().padLeft(2, '0')}-${_expiryDate!.day.toString().padLeft(2, '0')}';
+    ? 'Pick expiry date'
+    : '${_expiryDate!.year}-${_expiryDate!.month.toString().padLeft(2, '0')}-${_expiryDate!.day.toString().padLeft(2, '0')}';
+
+
+    final hasPhoto = _pickedImage != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Add Item')),
@@ -71,6 +102,25 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              OutlinedButton.icon(
+                onPressed: _takePhoto,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Take product photo'),
+              ),
+              const SizedBox(height: 10),
+              if (hasPhoto)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(_pickedImage!.path),
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              else
+                const Text('No photo yet (optional).'),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
