@@ -4,11 +4,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'screens/inventory_list_screen.dart';
 import 'screens/add_edit_item_screen.dart';
 import 'services/inventory_storage.dart';
+import 'services/notification_service.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await InventoryStorage().init();
+  await NotificationService.instance.init();
 
   runApp(const ShelfLifeCheckerApp());
 }
