@@ -5,6 +5,8 @@ import '../models/inventory_item.dart';
 import '../services/inventory_storage.dart';
 import '../services/notification_service.dart';
 import 'add_edit_item_screen.dart';
+import '../services/analytics_service.dart';
+
 
 enum InventoryFilter { all, expiringSoon, expired }
 
@@ -81,6 +83,10 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
     if (result is InventoryItem) {
       await _storage.addItem(result);
+      await AnalyticsService.instance.logAddItem(
+        category: result.category,
+        hasPhoto: result.photoPath != null,
+      );
 
       final notifId = result.id.hashCode & 0x7fffffff;
       await NotificationService.instance.showItemAdded(
@@ -94,9 +100,19 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   }
 
   Future<void> _deleteItem(String id) async {
+    final item = _items.where((e) => e.id == id).isNotEmpty
+        ? _items.firstWhere((e) => e.id == id)
+        : null;
+
     await _storage.deleteItem(id);
+
+    if (item != null) {
+      await AnalyticsService.instance.logDeleteItem(category: item.category);
+    }
+
     await _reload();
   }
+
 
   List<InventoryItem> _applyFilter(List<InventoryItem> items, DateTime now) {
     final q = _query.trim().toLowerCase();
@@ -145,7 +161,10 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         actions: [
           PopupMenuButton<InventoryFilter>(
             tooltip: 'Filter',
-            onSelected: (v) => setState(() => _filter = v),
+            onSelected: (v) async {
+              setState(() => _filter = v);
+              await AnalyticsService.instance.logFilterUsed(filter: v.name);
+            },
             itemBuilder: (context) => [
               for (final f in InventoryFilter.values)
                 PopupMenuItem(

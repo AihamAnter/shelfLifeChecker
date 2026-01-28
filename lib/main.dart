@@ -5,6 +5,9 @@ import 'screens/inventory_list_screen.dart';
 import 'screens/add_edit_item_screen.dart';
 import 'services/inventory_storage.dart';
 import 'services/notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 
 
 Future<void> main() async {
@@ -12,6 +15,10 @@ Future<void> main() async {
   await Hive.initFlutter();
   await InventoryStorage().init();
   await NotificationService.instance.init();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
 
   runApp(const ShelfLifeCheckerApp());
 }

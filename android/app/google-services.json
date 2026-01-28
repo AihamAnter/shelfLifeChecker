@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "642966539184",
+    "project_id": "shelflifechecker",
+    "storage_bucket": "shelflifechecker.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:642966539184:android:834a9548c4ee9feaa6a475",
+        "android_client_info": {
+          "package_name": "com.example.shelf_life_checker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5kGP-XXFjc-1oWqoIuS99Wu3BOu-apy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
