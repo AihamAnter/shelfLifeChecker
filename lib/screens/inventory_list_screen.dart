@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import '../models/inventory_item.dart';
+import '../services/analytics_service.dart';
 import '../services/inventory_storage.dart';
 import '../services/notification_service.dart';
 import 'add_edit_item_screen.dart';
-import '../services/analytics_service.dart';
-
 
 enum InventoryFilter { all, expiringSoon, expired }
 
@@ -21,7 +21,9 @@ class InventoryListScreen extends StatefulWidget {
 
 class _InventoryListScreenState extends State<InventoryListScreen> {
   final _storage = InventoryStorage();
+
   late List<InventoryItem> _items;
+  late Future<void> _initFuture;
 
   InventoryFilter _filter = InventoryFilter.all;
   String _query = '';
@@ -29,9 +31,14 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   @override
   void initState() {
     super.initState();
+    _items = [];
+    _initFuture = _init();
+  }
+
+  Future<void> _init() async {
     _items = _storage.loadItems();
     if (_items.isEmpty) {
-      _seedDemoData();
+      await _seedDemoData();
     }
   }
 
@@ -71,11 +78,12 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
       await _storage.addItem(item);
     }
 
-    setState(() => _items = _storage.loadItems());
+    _items = _storage.loadItems();
   }
 
   Future<void> _reload() async {
-    setState(() => _items = _storage.loadItems());
+    _items = _storage.loadItems();
+    setState(() {});
   }
 
   Future<void> _openAddItem() async {
@@ -83,6 +91,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
     if (result is InventoryItem) {
       await _storage.addItem(result);
+
       await AnalyticsService.instance.logAddItem(
         category: result.category,
         hasPhoto: result.photoPath != null,
@@ -100,9 +109,8 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   }
 
   Future<void> _deleteItem(String id) async {
-    final item = _items.where((e) => e.id == id).isNotEmpty
-        ? _items.firstWhere((e) => e.id == id)
-        : null;
+    final InventoryItem? item =
+        _items.any((e) => e.id == id) ? _items.firstWhere((e) => e.id == id) : null;
 
     await _storage.deleteItem(id);
 
@@ -112,7 +120,6 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
     await _reload();
   }
-
 
   List<InventoryItem> _applyFilter(List<InventoryItem> items, DateTime now) {
     final q = _query.trim().toLowerCase();
@@ -152,83 +159,94 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final visible = _applyFilter(_items, now);
+    return FutureBuilder<void>(
+      future: _initFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inventory'),
-        actions: [
-          PopupMenuButton<InventoryFilter>(
-            tooltip: 'Filter',
-            onSelected: (v) async {
-              setState(() => _filter = v);
-              await AnalyticsService.instance.logFilterUsed(filter: v.name);
-            },
-            itemBuilder: (context) => [
-              for (final f in InventoryFilter.values)
-                PopupMenuItem(
-                  value: f,
-                  child: Text(_filterLabel(f)),
-                ),
-            ],
-            icon: const Icon(Icons.filter_list),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-            child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search (name, category, quantity)',
-                border: OutlineInputBorder(),
+        final now = DateTime.now();
+        final visible = _applyFilter(_items, now);
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Inventory'),
+            actions: [
+              PopupMenuButton<InventoryFilter>(
+                tooltip: 'Filter',
+                onSelected: (v) async {
+                  setState(() => _filter = v);
+                  await AnalyticsService.instance.logFilterUsed(filter: v.name);
+                },
+                itemBuilder: (context) => [
+                  for (final f in InventoryFilter.values)
+                    PopupMenuItem(
+                      value: f,
+                      child: Text(_filterLabel(f)),
+                    ),
+                ],
+                icon: const Icon(Icons.filter_list),
               ),
-              onChanged: (v) => setState(() => _query = v),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Row(
-              children: [
-                Chip(label: Text(_filterLabel(_filter))),
-                const SizedBox(width: 8),
-                Text('${visible.length} items'),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: visible.isEmpty
-                ? const Center(child: Text('No items match your filter/search.'))
-                : ListView.builder(
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) {
-                      final item = visible[index];
-                      final daysLeft = item.daysLeftFrom(now);
-
-                      return Dismissible(
-                        key: ValueKey(item.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: const Icon(Icons.delete),
-                        ),
-                        onDismissed: (_) => _deleteItem(item.id),
-                        child: _InventoryRow(item: item, daysLeft: daysLeft),
-                      );
-                    },
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                child: TextField(
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search (name, category, quantity)',
+                    border: OutlineInputBorder(),
                   ),
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Row(
+                  children: [
+                    Chip(label: Text(_filterLabel(_filter))),
+                    const SizedBox(width: 8),
+                    Text('${visible.length} items'),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: visible.isEmpty
+                    ? const Center(child: Text('No items match your filter/search.'))
+                    : ListView.builder(
+                        itemCount: visible.length,
+                        itemBuilder: (context, index) {
+                          final item = visible[index];
+                          final daysLeft = item.daysLeftFrom(now);
+
+                          return Dismissible(
+                            key: ValueKey(item.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: const Icon(Icons.delete),
+                            ),
+                            onDismissed: (_) => _deleteItem(item.id),
+                            child: _InventoryRow(item: item, daysLeft: daysLeft),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddItem,
-        child: const Icon(Icons.add),
-      ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _openAddItem,
+            child: const Icon(Icons.add),
+          ),
+        );
+      },
     );
   }
 }
